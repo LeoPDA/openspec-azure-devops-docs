@@ -19,7 +19,7 @@ function HomepageHeader() {
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
-            to="/docs/openpec-azure-devops-guide">
+            to="/docs/openspec-azure-devops-guide">
             Tutorial
           </Link>
         </div>
