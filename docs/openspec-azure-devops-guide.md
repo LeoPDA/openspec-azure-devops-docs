@@ -232,3 +232,5 @@ Isso acontece quando os delta specs não são sincronizados antes de arquivar. O
 Verifique se o estado desejado existe no template do projeto. Os estados esperados são:
 - Task: To Do, In Progress, Done
 - PBI: New, Approved, Committed, Ready
+
+Thank you!
