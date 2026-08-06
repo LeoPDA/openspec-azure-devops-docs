@@ -8,13 +8,14 @@ O objetivo é manter o backlog organizado, vincular mudanças a work items e reg
 
 ## 1. Comandos disponíveis
 
-O agente trabalha com cinco comandos principais:
+O agente trabalha com seis comandos principais:
 
 | Comando | Quando usar | O que faz |
 |---|---|---|
 | `/opsx-init` | No início do projeto ou quando a estrutura de módulos mudar | Lê `Docs/apresentacao.md` e `openspec/config.yaml`, sincroniza Epic → Feature → PBI no Azure DevOps e salva `openspec/backlog-mapping.yaml` |
 | `/opsx-restructure` | Quando o domínio/módulos mudarem (ex: empresa única, novo papel) | Atualiza docs, `config.yaml`, backlog no Azure DevOps e specs principais, sempre com confirmação |
 | `/opsx-propose` | Sempre que for começar uma mudança | Cria uma change vinculada a um PBI e opcionalmente cria uma Task filha no Azure DevOps |
+| `/opsx-apply` | Quando quiser implementar uma change a partir do `tasks.md` | Lê os artefatos da change, executa as tasks pendentes e marca progresso |
 | `/opsx-archive` | Quando a change estiver implementada e os specs sincronizados | Move a change para `openspec/changes/archive/`, atualiza Tempo Realizado/Data Entrega e move a Task para **Done** |
 | `/opsx-handoff` | Ao trocar de tarefa, encerrar sessão ou quando o contexto estiver cheio | Salva o estado atual do trabalho em `.agents/AGENTS.md` para continuidade em outra sessão |
 
@@ -87,15 +88,19 @@ Use quando algo muda na estrutura geral do projeto (ex: removeu matriz/filial, a
 
 ### 3.4. Implementar a change
 
-A implementação é feita pelo agente a partir do `tasks.md`. Não há comando separado — basta pedir:
+```
+/opsx-apply <nome-da-change>
+```
 
-> "Implemente a change `<nome>`"
+Se o nome for omitido, o agente infere do contexto ou lista as changes ativas.
 
 O agente:
-1. Lê os artefatos da change.
+1. Lê os artefatos da change (`proposal.md`, `design.md`, `tasks.md`, specs).
 2. Executa as tasks pendentes.
 3. Marca `- [ ]` → `- [x]` no `tasks.md`.
 4. Atualiza delta specs se necessário.
+
+Também é possível pedir informalmente: "Implemente a change `<nome>`".
 
 ### 3.5. Arquivar a change
 
@@ -136,6 +141,7 @@ AfixRH/
 │   │   ├── opsx-init.md
 │   │   ├── opsx-restructure.md
 │   │   ├── opsx-propose.md
+│   │   ├── opsx-apply.md        ← implementa tasks da change
 │   │   ├── opsx-archive.md
 │   │   ├── opsx-handoff.md      ← salva estado da sessão
 │   │   └── deprecated/          ← comandos antigos (não usar)
@@ -159,14 +165,55 @@ AfixRH/
 ├── Docs/
 │   ├── apresentacao.md          ← fonte do /opsx-init
 │   ├── estrutura-organizacional.md
-│   └── openpec-azure-devops-guide.md
+│   └── openspec-azure-devops-guide.md
 └── .agents/
     └── AGENTS.md
 ```
 
 ---
 
-## 5. Regras de negócio do Azure DevOps
+## 5. O que é nativo e o que foi criado
+
+A estrutura do OpenSpec no AfixRH mistura componentes nativos (da ferramenta OpenSpec/OpenCode) com extensões criadas especificamente para este projeto.
+
+### Nativo do OpenSpec / OpenCode
+
+| Componente | O que é |
+|---|---|
+| `openspec` CLI | A linha de comando oficial: `openspec list`, `openspec status`, `openspec new change`, etc. |
+| `openspec/config.yaml` | Arquivo raiz de configuração do OpenSpec (nativo, mas preenchido pelo projeto). |
+| `openspec/specs/` | Diretório de specs principais (capabilities). |
+| `openspec/changes/` | Diretório de changes ativas e arquivadas. |
+| Estrutura de change | `proposal.md`, `design.md`, `tasks.md`, `specs/` e `.openspec.yaml` são convenções nativas do OpenSpec. |
+| `.opencode/` | Framework de comandos e skills do OpenCode. |
+| `session-handoff` | Skill nativo do OpenCode para troca de contexto. |
+
+### Criado/customizado para o AfixRH
+
+| Componente | O que é |
+|---|---|
+| Comandos `/opsx-*` | Atalhos do agente (`/opsx-init`, `/opsx-propose`, `/opsx-apply`, `/opsx-archive`, etc.) que orquestram o OpenSpec + Azure DevOps. |
+| Skills `openspec-*` | Skills em `.opencode/skills/openspec-*` (init-project, propose, apply, archive, sync-specs, etc.) que implementam a lógica específica do AfixRH. |
+| Integração Azure DevOps | Criação de Epic/Feature/PBI/Task, campos customizados (`TempoEstimado`, `TempoRealizado`, `DataEstimada`, `DataEntrega`), comentários e transições de estado. |
+| `Docs/apresentacao.md` e `Docs/estrutura-organizacional.md` | Fontes de domínio usadas para sincronizar o backlog. |
+| `openspec/backlog-mapping.yaml` | Gerado automaticamente pelo `/opsx-init`; mapeia IDs do Azure DevOps para o projeto local. |
+| `Docs/openspec-azure-devops-guide.md` | Este guia. |
+| `.agents/AGENTS.md` | Arquivo de handoff mantido pelo `/opsx-handoff`. |
+
+### Nativo do Azure DevOps
+
+- Hierarquia de work items: **Epic → Feature → Product Backlog Item → Task**.
+- Campos customizados existentes no processo do projeto: `Custom.TempoEstimado`, `Custom.TempoRealizado`, `Custom.DataEstimada`, `Custom.DataEntrega`.
+- Campo padrão `Microsoft.VSTS.Scheduling.Effort`.
+
+### Nativo do Git
+
+- Controle de versão: `.git/`, branches, commits, push/pull.
+- O OpenSpec não substitui o Git; ele gera artefatos que devem ser versionados junto com o código.
+
+---
+
+## 6. Regras de negócio do Azure DevOps
 
 ### AssignedTo
 
@@ -202,7 +249,7 @@ Sempre lance no mínimo **30 minutos** (0,5 hora) ao fechar uma Task.
 
 ---
 
-## 6. Boas práticas
+## 7. Boas práticas
 
 - Mantenha `Docs/apresentacao.md` e `openspec/config.yaml` atualizados.
 - Use `/opsx-restructure` quando o domínio mudar.
@@ -213,7 +260,7 @@ Sempre lance no mínimo **30 minutos** (0,5 hora) ao fechar uma Task.
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 ### `openspec` não encontrado
 
@@ -233,4 +280,156 @@ Verifique se o estado desejado existe no template do projeto. Os estados esperad
 - Task: To Do, In Progress, Done
 - PBI: New, Approved, Committed, Ready
 
-Thank you!
+---
+
+## 9. Usando o OpenSpec diretamente (sem comandos do agente)
+
+Os comandos `/opsx-*` são atalhos do agente que automatizam o OpenSpec **e** a integração com Azure DevOps. Se você preferir usar o OpenSpec "na mão", a CLI nativa oferece os mesmos blocos básicos — mas aí a integração com Azure DevOps (criar Task, preencher campos customizados, arquivar no ADO, etc.) precisa ser feita manualmente.
+
+### 9.1. Pré-requisitos
+
+1. Instale a CLI do OpenSpec e verifique se está no PATH:
+
+```bash
+openspec --version
+```
+
+2. O projeto já deve conter um `openspec/config.yaml` válido. Exemplo mínimo:
+
+```yaml
+project: AfixRH
+schema: spec-driven
+```
+
+3. Opcional: configure um "store" (repositório OpenSpec standalone) se quiser compartilhar specs entre projetos:
+
+```bash
+openspec store list --json
+openspec <comando> --store <id>
+```
+
+### 9.2. Passo a passo manual
+
+#### 1. Inicializar o backlog (substitui `/opsx-init`)
+
+O `openspec` nativo não sincroniza Epic/Feature/PBI com Azure DevOps. No modo manual, você deve:
+
+- Criar/organizar os work items diretamente no Azure DevOps.
+- Manter `Docs/apresentacao.md` e `openspec/config.yaml` atualizados como fonte de verdade.
+- (Opcional) criar `openspec/backlog-mapping.yaml` à mão para guardar os IDs do ADO.
+
+#### 2. Propor uma change (substitui `/opsx-propose`)
+
+Crie a change via CLI:
+
+```bash
+openspec new change <nome-da-change>
+```
+
+Depois, edite manualmente os artefatos gerados em `openspec/changes/<nome-da-change>/`:
+
+| Arquivo | O que fazer |
+|---|---|
+| `proposal.md` | Escreva o `## Why`, `## What Changes`, `## Capabilities`. |
+| `design.md` | Desenhe a arquitetura técnica. |
+| `tasks.md` | Liste as tarefas como checklist `- [ ]`. |
+| `specs/<capability>/spec.md` | Crie/adapte os delta specs. |
+| `.openspec.yaml` | Mantenha os metadados da change (gerado automaticamente). |
+
+> No modo manual, a criação da Task filha no Azure DevOps, o preenchimento de `Tempo Estimado`, `Data Estimada` e `Effort` devem ser feitos diretamente no portal do Azure DevOps.
+
+#### 3. Acompanhar o status da change
+
+```bash
+openspec list --json
+openspec status --change "<nome-da-change>" --json
+openspec show --change "<nome-da-change>"
+```
+
+Esses comandos mostram quais artefatos estão pendentes ou concluídos.
+
+#### 4. Implementar a change (substitui `/opsx-apply`)
+
+No modo manual, você mesmo executa as tarefas do `tasks.md` e marca-as como concluídas:
+
+```markdown
+- [x] 1.1 Criar entidade Vaga
+```
+
+Se precisar de instruções da change para o agente:
+
+```bash
+openspec instructions --change "<nome-da-change>"
+```
+
+#### 5. Validar specs e a change
+
+```bash
+openspec validate --change "<nome-da-change>"
+openspec doctor
+openspec context
+```
+
+- `validate` verifica se os artefatos estão consistentes.
+- `doctor` diagnostica problemas no repositório OpenSpec.
+- `context` exibe o contexto atual da change.
+
+#### 6. Sincronizar delta specs com specs principais (substitui a sync do `/opsx-archive`)
+
+O OpenSpec nativo não faz merge automático de specs. Você deve copiar/mergear manualmente os arquivos de:
+
+```
+openspec/changes/<nome-da-change>/specs/<capability>/spec.md
+```
+
+para:
+
+```
+openspec/specs/<capability>/spec.md
+```
+
+Regras básicas de merge:
+
+- `## ADDED Requirements` → adicione na spec principal se ainda não existir.
+- `## MODIFIED Requirements` → atualize os requisitos e cenários existentes, preservando o que não foi mencionado.
+- `## REMOVED Requirements` → remova o bloco inteiro da spec principal.
+- `## RENAMED Requirements` → renomeie `FROM` para `TO`.
+
+Se o capability não existir ainda, crie `openspec/specs/<capability>/spec.md` com um `## Purpose` e os requisitos adicionados.
+
+#### 7. Arquivar a change (substitui `/opsx-archive`)
+
+```bash
+openspec archive --change "<nome-da-change>"
+```
+
+Isso move a change para `openspec/changes/archive/YYYY-MM-DD-<nome-da-change>/`. O `.openspec.yaml` é preservado.
+
+> Atenção: no modo manual, a atualização da Task no Azure DevOps (`Tempo Realizado`, `Data Entrega`, comentário e estado Done) **não** é feita pelo `openspec archive`. Faça isso manualmente no portal do ADO.
+
+### 9.3. Quando usar o modo manual?
+
+| Situação | Recomendação |
+|---|---|
+| Quer automação de Azure DevOps + validações do agente | Use os comandos `/opsx-*`. |
+| Só quer planejar specs e rastrear changes localmente | Use `openspec` CLI diretamente. |
+| Projeto não usa Azure DevOps | Use o modo manual. |
+| Prefere controle total sobre cada passo | Use o modo manual. |
+
+### 9.4. Resumo dos comandos nativos mais usados
+
+```bash
+openspec list --json                       # lista changes
+openspec status --change "<n>" --json      # status dos artefatos
+openspec show --change "<n>"               # detalhes da change
+openspec new change "<n>"                  # cria change
+openspec validate --change "<n>"           # valida artefatos
+openspec doctor                            # diagnostica o repo
+openspec context                           # contexto atual
+openspec archive --change "<n>"            # arquiva change
+openspec instructions --change "<n>"       # instruções da change
+openspec store list --json                 # lista stores registrados
+```
+
+> Dica: comandos que leem/escrevem specs e changes (`new change`, `status`, `list`, `show`, `archive`, `validate`, `doctor`, `context`, `instructions`) aceitam `--store <id>` se você trabalhar com um store.
+
